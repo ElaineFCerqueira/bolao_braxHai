@@ -1,0 +1,34 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── predictions ───────────────────────────────────────────
+    match /predictions/{id} {
+      // Qualquer um pode ler (lista pública)
+      allow read: if true;
+
+      // Qualquer um pode criar (sem login obrigatório)
+      // Validação: campos obrigatórios e tipos corretos
+      allow create: if
+        request.resource.data.keys().hasAll(['name','scoreBrasil','scoreHaiti','scoreKey','createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.scoreBrasil is int
+        && request.resource.data.scoreBrasil >= 0
+        && request.resource.data.scoreHaiti is int
+        && request.resource.data.scoreHaiti >= 0;
+
+      // Ninguém edita ou deleta pelo cliente
+      allow update, delete: if false;
+    }
+
+    // ── scoreCounters ─────────────────────────────────────────
+    // Lidos/escritos apenas por transações (o cliente lê para feedback visual)
+    match /scoreCounters/{key} {
+      allow read:  if true;
+      allow write: if false; // só via transação do SDK (runTransaction bypassa esta regra no client SDK)
+    }
+  }
+}
